@@ -199,6 +199,7 @@ static int do_slabs_newslab(const unsigned int id) {
     int len = settings.slab_reassign ? settings.item_size_max
         : p->size * p->perslab;
     fprintf(stderr,"dxl do_slabs_newslab size=%d,perslab=%d,len=%d.\n",p->size, p->perslab, len);
+	fprintf(stderr, "mem_limit is %d, mem_malloced is %d, p->slabs is %d", mem_limit, mem_malloced, p->slabs);
     char *ptr;
 
     if ((mem_limit && mem_malloced + len > mem_limit && p->slabs > 0) ||
@@ -258,6 +259,7 @@ static void *do_slabs_alloc(const size_t size, unsigned int id) {
     return ret;
 }
 
+/* 释放到对应的item，加入slots的空闲队列，并且置上ITEM_SLABBED */
 static void do_slabs_free(void *ptr, const size_t size, unsigned int id) {
     slabclass_t *p;
     item *it;

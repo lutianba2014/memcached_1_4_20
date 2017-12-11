@@ -215,13 +215,13 @@ item *do_item_alloc(char *key, const size_t nkey, const int flags,
      */
     it->refcount = 1;     /* the caller will have a reference */
     mutex_unlock(&cache_lock);
-    /*队列头里面取出来，对应的prev 和next都赋值为空*/
+    /*对应的prev 和next都赋值为空*/
     it->next = it->prev = it->h_next = 0;
     it->slabs_clsid = id;
 
     DEBUG_REFCNT(it, '*');
     /*对应的item内存块赋值*/
-    it->it_flags = settings.use_cas ? ITEM_CAS : 0;
+    it->it_flags = settings.use_cas ? ITEM_CAS : 0; /*ITEM 的flags标记， 如果没有就默认为0 */
     it->nkey = nkey;
     it->nbytes = nbytes;
     memcpy(ITEM_key(it), key, nkey);
@@ -602,7 +602,7 @@ item *do_item_get(const char *key, const size_t nkey, const uint32_t hv) {
                 fprintf(stderr, " -nuked by expire");
             }
         } else {
-            it->it_flags |= ITEM_FETCHED;
+            it->it_flags |= ITEM_FETCHED; /* 表示最近获取过 */
             DEBUG_REFCNT(it, '+');
         }
     }

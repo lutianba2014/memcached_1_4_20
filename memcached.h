@@ -330,13 +330,13 @@ extern struct stats stats;
 extern time_t process_started;
 extern struct settings settings;
 
-#define ITEM_LINKED (1)
-#define ITEM_CAS (2)
+#define ITEM_LINKED (1)  /* 加入了对应的hash 表*/
+#define ITEM_CAS (2)     /* 支持cas，在每个item结构里面都要有cas这个标记 */
 
 /* temp */
-#define ITEM_SLABBED (4)
+#define ITEM_SLABBED (4) /*ITEM 释放的时候会置上该标志，后续分配的时候直接通过赋值就去掉 */
 
-#define ITEM_FETCHED (8)
+#define ITEM_FETCHED (8) /* 近期访问过某个节点，后续因为lru算法被置换掉，记录对应的情况 */
 
 /**
  * Structure for storing items within memcached.
