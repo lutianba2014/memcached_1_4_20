@@ -25,14 +25,14 @@
 
 typedef struct {
     unsigned int size;      /* sizes of items */ /*每个item块的大小*/
-    unsigned int perslab;   /* how many items per slab */
+    unsigned int perslab;   /* how many items per slab *//*总的有多少个item*/
 
-    void *slots;           /* list of item ptrs */
-    unsigned int sl_curr;   /* total free items in list */
+    void *slots;           /* list of item ptrs */ /*空余的item head头*/
+    unsigned int sl_curr;   /* total free items in list */ /*空余item的个数*/
 
-    unsigned int slabs;     /* how many slabs were allocated for this class */
+    unsigned int slabs;     /* how many slabs were allocated for this class */ /*当前分配了多少个slabs*/ 
 
-    void **slab_list;       /* array of slab pointers */
+    void **slab_list;       /* array of slab pointers *//*指向对应的分配的内存块**/
     unsigned int list_size; /* size of prev array */
 
     unsigned int killing;  /* index+1 of dying slab, or zero if none */
@@ -185,11 +185,12 @@ static int grow_slab_list (const unsigned int id) {
     return 1;
 }
 
+/*根据size和perslab进行内存块的划分，每个为一个item*/
 static void split_slab_page_into_freelist(char *ptr, const unsigned int id) {
     slabclass_t *p = &slabclass[id];
     int x;
     for (x = 0; x < p->perslab; x++) {
-        do_slabs_free(ptr, 0, id);
+        do_slabs_free(ptr, 0, id);/*初始化*/
         ptr += p->size;
     }
 }
@@ -201,7 +202,11 @@ static int do_slabs_newslab(const unsigned int id) {
     fprintf(stderr,"dxl do_slabs_newslab size=%d,perslab=%d,len=%d.\n",p->size, p->perslab, len);
 	fprintf(stderr, "mem_limit is %d, mem_malloced is %d, p->slabs is %d", mem_limit, mem_malloced, p->slabs);
     char *ptr;
-
+    /* 一下三个条件每个都必须要判断
+    判断以下条件是否满足：
+	   1.已经分配的内存(mem_malloced)+即将分配的内存(len)<总的内存(mem_limit) 并且当前这个块的空闲块个数还有剩余(slabs>0)
+	   2.分配对应的槽列表
+	   3.分配该块对应的内存 */
     if ((mem_limit && mem_malloced + len > mem_limit && p->slabs > 0) ||
         (grow_slab_list(id) == 0) ||
         ((ptr = memory_allocate((size_t)len)) == 0)) {
@@ -211,8 +216,10 @@ static int do_slabs_newslab(const unsigned int id) {
     }
 
     memset(ptr, 0, (size_t)len);
+	/*根据当前槽内存块的大小，	划分为对应内存块大小*/
     split_slab_page_into_freelist(ptr, id);
-
+	
+    /*加入到对应的slabs_list*/
     p->slab_list[p->slabs++] = ptr;
     mem_malloced += len;
     MEMCACHED_SLABS_SLABCLASS_ALLOCATE(id);
@@ -375,6 +382,7 @@ static void do_slabs_stats(ADD_STAT add_stats, void *c) {
     add_stats(NULL, 0, NULL, 0, c);
 }
 
+/*分配对应的内存块*/
 static void *memory_allocate(size_t size) {
     void *ret;
 
@@ -382,6 +390,7 @@ static void *memory_allocate(size_t size) {
         /* We are not using a preallocated large memory chunk */
         ret = malloc(size);
     } else {
+        fprintf(stderr, "mem_base=%x, mem_current=%x,size=%u, mem_avail=%u.\n", mem_base, mem_current, size, mem_avail)
         ret = mem_current;
 
         if (size > mem_avail) {
