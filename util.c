@@ -10,6 +10,7 @@
 
 /* Avoid warnings on solaris, where isspace() is an index into an array, and gcc uses signed chars */
 #define xisspace(c) isspace((unsigned char)c)
+/*test*/
 
 bool safe_strtoull(const char *str, uint64_t *out) {
     assert(out != NULL);
