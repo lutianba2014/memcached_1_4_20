@@ -91,6 +91,7 @@ unsigned int slabs_clsid(const size_t size) {
 /**
  * Determines the chunk sizes and initializes the slab class descriptors
  * accordingly.
+ * 预分配一个slabs的item大小和item的个数
  */
 void slabs_init(const size_t limit, const double factor, const bool prealloc) {
     int i = POWER_SMALLEST - 1;
@@ -199,8 +200,8 @@ static int do_slabs_newslab(const unsigned int id) {
     slabclass_t *p = &slabclass[id];
     int len = settings.slab_reassign ? settings.item_size_max
         : p->size * p->perslab;
-    fprintf(stderr,"dxl do_slabs_newslab size=%d,perslab=%d,len=%d.\n",p->size, p->perslab, len);
-	fprintf(stderr, "mem_limit is %d, mem_malloced is %d, p->slabs is %d", mem_limit, mem_malloced, p->slabs);
+    fprintf(stderr,"[%u] do_slabs_newslab size=%d,perslab=%d,len=%d.\n",id, p->size, p->perslab, len);
+	fprintf(stderr, "[%u] mem_limit is %d, mem_malloced is %d, p->slabs is %d\n", id,mem_limit, mem_malloced, p->slabs);
     char *ptr;
     /* 一下三个条件每个都必须要判断
     判断以下条件是否满足：
@@ -257,6 +258,7 @@ static void *do_slabs_alloc(const size_t size, unsigned int id) {
     }
 
     if (ret) {
+		fprintf(stderr, "[%d]current remainder is %d.\n" id,p->sl_curr);
         p->requested += size;
         MEMCACHED_SLABS_ALLOCATE(size, id, p->size, ret);
     } else {
