@@ -236,7 +236,7 @@ static void settings_init(void) {
     settings.hashpower_init = 0;
     settings.slab_reassign = false;
     settings.slab_automove = 0;
-    settings.shutdown_command = false;
+    settings.shutdown_command = true;
     settings.tail_repair_time = TAIL_REPAIR_TIME_DEFAULT;
     settings.flush_enabled = true;
 }
@@ -5536,7 +5536,7 @@ int main (int argc, char **argv) {
 
     /* initialize other stuff */
     stats_init();
-    assoc_init(settings.hashpower_init);
+    assoc_init(settings.hashpower_init);/* hash table 桶分配内存 */
     conn_init();
     slabs_init(settings.maxbytes, settings.factor, preallocate);
 

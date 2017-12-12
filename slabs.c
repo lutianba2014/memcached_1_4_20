@@ -39,14 +39,18 @@ typedef struct {
     size_t requested; /* The number of requested bytes */
 } slabclass_t;
 
-static slabclass_t slabclass[MAX_NUMBER_OF_SLAB_CLASSES];
-static size_t mem_limit = 0;
-static size_t mem_malloced = 0;
+static slabclass_t slabclass[MAX_NUMBER_OF_SLAB_CLASSES]; /* slabs 管理数组 */
+static size_t mem_limit = 0;                              /* 总内存的大小 */
+static size_t mem_malloced = 0;                           /* 已经分配的内存大小 */
 static int power_largest;
 
-static void *mem_base = NULL;
-static void *mem_current = NULL;
-static size_t mem_avail = 0;
+/* 启用内存预分配的指针 
+ * mem_base 指向最初分配的地址
+ * mem_curent 当前可以分配的起始地址
+*/
+static void *mem_base = NULL;                             /* 内存块的起始地址 */
+static void *mem_current = NULL;                          /* 当前分配到的内存地址 */     
+static size_t mem_avail = 0;                              /* 剩余内存多少 */
 
 /**
  * Access to the slab allocator is protected by this lock
@@ -76,7 +80,7 @@ static void slabs_preallocate (const unsigned int maxslabs);
  * Given object size, return id to use when allocating/freeing memory for object
  * 0 means error: can't store such a large object
  */
-
+/*需要内存块的大小，遍历slabclass，找到合适的块*/
 unsigned int slabs_clsid(const size_t size) {
     int res = POWER_SMALLEST;
 
@@ -121,6 +125,7 @@ void slabs_init(const size_t limit, const double factor, const bool prealloc) {
         slabclass[i].size = size;
         slabclass[i].perslab = settings.item_size_max / slabclass[i].size;
         size *= factor;
+		
         if (settings.verbose > 1) {
             fprintf(stderr, "slab class %3d: chunk size %9u perslab %7u\n",
                     i, slabclass[i].size, slabclass[i].perslab);
@@ -134,6 +139,7 @@ void slabs_init(const size_t limit, const double factor, const bool prealloc) {
         fprintf(stderr, "slab class %3d: chunk size %9u perslab %7u\n",
                 i, slabclass[i].size, slabclass[i].perslab);
     }
+	fprintf(stderr, "item_size_max is %d, factor is %f, power_largest is %d.\n", settings.item_size_max, factor,power_largest);
 
     /* for the test suite:  faking of how much we've already malloc'd */
     {
@@ -465,6 +471,7 @@ static int slab_rebalance_start(void) {
     pthread_mutex_lock(&cache_lock);
     pthread_mutex_lock(&slabs_lock);
 
+	/* 需要移动的src 和 dst的合法性检查 */
     if (slab_rebal.s_clsid < POWER_SMALLEST ||
         slab_rebal.s_clsid > power_largest  ||
         slab_rebal.d_clsid < POWER_SMALLEST ||

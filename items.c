@@ -107,7 +107,7 @@ item *do_item_alloc(char *key, const size_t nkey, const int flags,
 
     mutex_lock(&cache_lock);
     /* do a quick check if we have any expired items in the tail.. */
-    int tries = 5;
+    int tries = 5;/*只查找5个*/
     int tried_alloc = 0;
     item *search;
     void *hold_lock = NULL;
@@ -650,6 +650,7 @@ void do_item_flush_expired(void) {
     }
 }
 
+/* 加入tail尾 */
 static void crawler_link_q(item *it) { /* item is the new tail */
     item **head, **tail;
     assert(it->slabs_clsid < LARGEST_ID);
@@ -789,6 +790,7 @@ static void *item_crawler_thread(void *arg) {
         fprintf(stderr, "Starting LRU crawler background thread\n");
     /*等待lru_crawler_cond通知*/
     while (do_run_lru_crawler_thread) {
+		
     pthread_cond_wait(&lru_crawler_cond, &lru_crawler_lock);
 
     while (crawler_count) {
@@ -893,7 +895,7 @@ int start_item_crawler_thread(void) {
 enum crawler_result_type lru_crawler_crawl(char *slabs) {
     char *b = NULL;
     uint32_t sid = 0;
-    uint8_t tocrawl[POWER_LARGEST];
+    uint8_t tocrawl[POWER_LARGEST];/* 哪些需要手动调整内存 */
     if (pthread_mutex_trylock(&lru_crawler_lock) != 0) {
         return CRAWLER_RUNNING;
     }

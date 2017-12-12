@@ -166,6 +166,7 @@ static void wait_for_thread_registration(int nthreads) {
     }
 }
 
+/* 累加线程初始计数器 */
 static void register_thread_initialized(void) {
     pthread_mutex_lock(&init_lock);
     init_count++;
@@ -328,6 +329,7 @@ void accept_new_conns(const bool do_accept) {
 
 /*
  * Set up a thread's information.
+ * 设置线程监听事件，监听对应的fd的事件，有事件触发证明新的连接来了
  */
 static void setup_thread(LIBEVENT_THREAD *me) {
     me->base = event_init();
@@ -385,7 +387,7 @@ static void *worker_libevent(void *arg) {
 
     register_thread_initialized();
 
-    event_base_loop(me->base, 0);
+    event_base_loop(me->base, 0);/* 设置当前线程循环监听事件 */
     return NULL;
 }
 

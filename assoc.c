@@ -25,7 +25,7 @@
 #include <assert.h>
 #include <pthread.h>
 
-static pthread_cond_t maintenance_cond = PTHREAD_COND_INITIALIZER;
+static pthread_cond_t maintenance_cond = PTHREAD_COND_INITIALIZER; /* 是否进行hash表的扩展 */
 
 
 typedef  unsigned long  int  ub4;   /* unsigned 4-byte quantities */
@@ -80,6 +80,7 @@ item *assoc_find(const char *key, const size_t nkey, const uint32_t hv) {
     item *it;
     unsigned int oldbucket;
 
+	/* 如果在扩展，如果在扩展并且已经扩展过了，在新表里面查找，否在还是在老表里面查找 */
     if (expanding &&
         (oldbucket = (hv & hashmask(hashpower - 1))) >= expand_bucket)
     {
@@ -125,6 +126,7 @@ static item** _hashitem_before (const char *key, const size_t nkey, const uint32
 }
 
 /* grows the hashtable to the next power of 2. */
+/* hash扩展 */
 static void assoc_expand(void) {
     old_hashtable = primary_hashtable;
 
@@ -141,11 +143,13 @@ static void assoc_expand(void) {
         stats.hash_is_expanding = 1;
         STATS_UNLOCK();
     } else {
+		fprintf(stderr, "calloc fail.\n");
         primary_hashtable = old_hashtable;
         /* Bad news, but we can keep running. */
     }
 }
 
+/* 通知assoc_maintenance_thread线程进行扩展 */
 static void assoc_start_expand(void) {
     if (started_expanding)
         return;
@@ -170,8 +174,9 @@ int assoc_insert(item *it, const uint32_t hv) {
     }
 
     hash_items++;
+	/* 当前hash_items的个数是否满足了扩展的条件 使用率达到66.6% */
     if (! expanding && hash_items > (hashsize(hashpower) * 3) / 2) {
-        assoc_start_expand();
+        assoc_start_expand();  /* 通知对应的线程开始扩展 */
     }
 
     MEMCACHED_ASSOC_INSERT(ITEM_key(it), it->nkey, hash_items);
@@ -220,7 +225,8 @@ static void *assoc_maintenance_thread(void *arg) {
 
             for (it = old_hashtable[expand_bucket]; NULL != it; it = next) {
                 next = it->h_next;
-
+				
+                /* 插入新的hash表 */  
                 bucket = hash(ITEM_key(it), it->nkey) & hashmask(hashpower);
                 it->h_next = primary_hashtable[bucket];
                 primary_hashtable[bucket] = it;
@@ -251,6 +257,7 @@ static void *assoc_maintenance_thread(void *arg) {
             /* We are done expanding.. just wait for next invocation */
             mutex_lock(&cache_lock);
             started_expanding = false;
+			/* 阻塞 等待通知扩展 */
             pthread_cond_wait(&maintenance_cond, &cache_lock);
             /* Before doing anything, tell threads to use a global lock */
             mutex_unlock(&cache_lock);
