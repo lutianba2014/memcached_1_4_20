@@ -207,7 +207,7 @@ static int do_slabs_newslab(const unsigned int id) {
     int len = settings.slab_reassign ? settings.item_size_max
         : p->size * p->perslab;
     fprintf(stderr,"[%u] do_slabs_newslab size=%d,perslab=%d,len=%d.\n",id, p->size, p->perslab, len);
-	fprintf(stderr, "[%u] mem_limit is %d, mem_malloced is %d, p->slabs is %d\n", id,mem_limit, mem_malloced, p->slabs);
+	fprintf(stderr, "[%u] mem_limit is %zu, mem_malloced is %zu, p->slabs is %d\n", id, mem_limit, mem_malloced, p->slabs);
     char *ptr;
     /* 一下三个条件每个都必须要判断
     判断以下条件是否满足：
@@ -225,7 +225,7 @@ static int do_slabs_newslab(const unsigned int id) {
     memset(ptr, 0, (size_t)len);
 	/*根据当前槽内存块的大小，	划分为对应内存块大小*/
     split_slab_page_into_freelist(ptr, id);
-	
+
     /*加入到对应的slabs_list*/
     p->slab_list[p->slabs++] = ptr;
     mem_malloced += len;
@@ -264,7 +264,7 @@ static void *do_slabs_alloc(const size_t size, unsigned int id) {
     }
 
     if (ret) {
-		fprintf(stderr, "[%d]current remainder is %d.\n" id,p->sl_curr);
+		fprintf(stderr, "[%d]current remainder is %d.\n", id,p->sl_curr);
         p->requested += size;
         MEMCACHED_SLABS_ALLOCATE(size, id, p->size, ret);
     } else {
@@ -398,7 +398,7 @@ static void *memory_allocate(size_t size) {
         /* We are not using a preallocated large memory chunk */
         ret = malloc(size);
     } else {
-        fprintf(stderr, "mem_base=%x, mem_current=%x,size=%u, mem_avail=%u.\n", mem_base, mem_current, size, mem_avail)
+        fprintf(stderr, "mem_base=%x, mem_current=%x,size=%zu, mem_avail=%zu.\n", (unsigned int)mem_base,(unsigned int) mem_current, size, mem_avail);
         ret = mem_current;
 
         if (size > mem_avail) {
