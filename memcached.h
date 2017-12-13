@@ -501,13 +501,13 @@ extern volatile rel_time_t current_time;
 extern volatile int slab_rebalance_signal;
 
 struct slab_rebalance {
-    void *slab_start;
-    void *slab_end;
-    void *slab_pos;
-    int s_clsid;
-    int d_clsid;
+    void *slab_start; /* slabs list 起始地址 */
+    void *slab_end;   /* slabs list 终止地址 */
+    void *slab_pos;   /* 当前已经调整到的位置 */
+    int s_clsid; /* 足够的内存slabs */
+    int d_clsid; /* 多次分配失败的内存 slabs ID*/
     int busy_items;
-    uint8_t done;
+    uint8_t done;/* 为1表示这次slabs调整完成了 */
 };
 
 extern struct slab_rebalance slab_rebal;

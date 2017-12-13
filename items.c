@@ -20,7 +20,7 @@ static void item_unlink_q(item *it);
 
 #define LARGEST_ID POWER_LARGEST
 typedef struct {
-    uint64_t evicted;
+    uint64_t evicted; /*当前的slabs满的情况次数*/
     uint64_t evicted_nonzero;
     rel_time_t evicted_time;
     uint64_t reclaimed;
@@ -561,6 +561,7 @@ item *do_item_get(const char *key, const size_t nkey, const uint32_t hv) {
         /* Optimization for slab reassignment. prevents popular items from
          * jamming in busy wait. Can only do this here to satisfy lock order
          * of item_lock, cache_lock, slabs_lock. */
+         /*此时正在进行slabs内存调整，满足条件的item查询不到*/
         if (slab_rebalance_signal &&
             ((void *)it >= slab_rebal.slab_start && (void *)it < slab_rebal.slab_end)) {
             do_item_unlink_nolock(it, hv);

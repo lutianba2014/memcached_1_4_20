@@ -107,7 +107,12 @@ time_t process_started;     /* when the process was started */
 conn **conns;
 
 struct slab_rebalance slab_rebal;
-volatile int slab_rebalance_signal;
+
+/* rebalance 状态标志，标记当前做的事情*/
+/* 0：表示当前可以进行slabs的调整
+   1：当前判断src slabs ID 和 dst slabs ID即其他条件是否满足
+   2：当前正在进行内存块的调整 */
+volatile int slab_rebalance_signal; 
 
 /** file scope variables **/
 static conn *listen_conn = NULL;

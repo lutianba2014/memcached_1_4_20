@@ -30,7 +30,7 @@ typedef struct {
     void *slots;           /* list of item ptrs */ /*空余的item head头*/
     unsigned int sl_curr;   /* total free items in list */ /*空余item的个数*/
 
-    unsigned int slabs;     /* how many slabs were allocated for this class */ /*当前分配了多少个slabs*/ 
+    unsigned int slabs;     /* how many slabs were allocated for this class */ /*当前分配了多少个slabs 即pages*/ 
 
     void **slab_list;       /* array of slab pointers *//*指向对应的分配的内存块**/
     unsigned int list_size; /* size of prev array */
@@ -464,6 +464,7 @@ static volatile int do_run_slab_rebalance_thread = 1;
 #define DEFAULT_SLAB_BULK_CHECK 1
 int slab_bulk_check = DEFAULT_SLAB_BULK_CHECK;
 
+/* src slabs ID 和 dst slabs ID的合法性检查 */
 static int slab_rebalance_start(void) {
     slabclass_t *s_cls;
     int no_go = 0;
@@ -481,10 +482,12 @@ static int slab_rebalance_start(void) {
 
     s_cls = &slabclass[slab_rebal.s_clsid];
 
+	/* dst slabs 预分配slabs list 成功否 */
     if (!grow_slab_list(slab_rebal.d_clsid)) {
         no_go = -1;
     }
 
+	/* 没有足够的s_cls分      配给dst slabs */
     if (s_cls->slabs < 2)
         no_go = -3;
 
@@ -632,13 +635,14 @@ static void slab_rebalance_finish(void) {
     d_cls   = &slabclass[slab_rebal.d_clsid];
 
     /* At this point the stolen slab is completely clear */
+	/* slab_list[0] 指向最后一个slab_list[last]*/
     s_cls->slab_list[s_cls->killing - 1] =
         s_cls->slab_list[s_cls->slabs - 1];
     s_cls->slabs--;
     s_cls->killing = 0;
 
     memset(slab_rebal.slab_start, 0, (size_t)settings.item_size_max);
-
+    /* 这里的内存从src获取的内存是否足够 */
     d_cls->slab_list[d_cls->slabs++] = slab_rebal.slab_start;
     split_slab_page_into_freelist(slab_rebal.slab_start,
         slab_rebal.d_clsid);
@@ -668,6 +672,7 @@ static void slab_rebalance_finish(void) {
 /* Return 1 means a decision was reached.
  * Move to its own thread (created/destroyed as needed) once automover is more
  * complex.
+ * return 1表示src 和 dst都已经找到了，可以开始pages调整
  */
 static int slab_automove_decision(int *src, int *dst) {
     static uint64_t evicted_old[POWER_LARGEST];
@@ -699,6 +704,9 @@ static int slab_automove_decision(int *src, int *dst) {
     pthread_mutex_unlock(&cache_lock);
 
     /* Find a candidate source; something with zero evicts 3+ times */
+	/* 找一个src id 内存足够
+	   1）没有alloc失败 
+	   2）总的pages大于2 并且连续3次没有出现alloc失败 */
     for (i = POWER_SMALLEST; i < power_largest; i++) {
         evicted_diff = evicted_new[i] - evicted_old[i];
         if (evicted_diff == 0 && total_pages[i] > 2) {
@@ -707,6 +715,7 @@ static int slab_automove_decision(int *src, int *dst) {
                 source = i;
         } else {
             slab_zeroes[i] = 0;
+			/* 最大出现alloc失败次数的有可能作为dst */
             if (evicted_diff > evicted_max) {
                 evicted_max = evicted_diff;
                 highest_slab = i;
@@ -718,6 +727,7 @@ static int slab_automove_decision(int *src, int *dst) {
     /* Pick a valid destination */
     if (slab_winner != 0 && slab_winner == highest_slab) {
         slab_wins++;
+		/* 同一个slabs id连续三次出现才会作为dst */
         if (slab_wins >= 3)
             dest = slab_winner;
     } else {
