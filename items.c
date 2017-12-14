@@ -311,12 +311,13 @@ static void item_unlink_q(item *it) {
 }
 
 int do_item_link(item *it, const uint32_t hv) {
-    fprintf(stderr,"do_item_link.\n");
+    
     MEMCACHED_ITEM_LINK(ITEM_key(it), it->nkey, it->nbytes);
     assert((it->it_flags & (ITEM_LINKED|ITEM_SLABBED)) == 0);
     mutex_lock(&cache_lock);
     it->it_flags |= ITEM_LINKED;
     it->time = current_time;
+	fprintf(stderr,"do_item_link it->time is %d.\n", it->time);
 
     STATS_LOCK();
     stats.curr_bytes += ITEM_ntotal(it);

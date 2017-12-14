@@ -123,6 +123,10 @@ void item_unlock_global(void) {
     mutex_unlock(&item_global_lock);
 }
 
+/* hash bukets的两种锁 在hash表扩展的时候用全局锁item_global_lock，否则用ITEM_LOCK_GRANULAR 
+ * item_global_lock hash表的全局锁，锁住的时候，都要对hash表的操作都要等待
+ * ITEM_LOCK_GRANULAR hash表的分段锁（几个桶共用一个锁）
+ */
 void item_lock(uint32_t hv) {
     uint8_t *lock_type = pthread_getspecific(item_lock_type_key);
     if (likely(*lock_type == ITEM_LOCK_GRANULAR)) {
@@ -160,6 +164,7 @@ void item_unlock(uint32_t hv) {
     }
 }
 
+/* 等待所有的线程做完事情 */
 static void wait_for_thread_registration(int nthreads) {
     while (init_count < nthreads) {
         pthread_cond_wait(&init_cond, &init_lock);
@@ -406,38 +411,38 @@ static void thread_libevent_process(int fd, short which, void *arg) {
             fprintf(stderr, "Can't read from libevent pipe\n");
 
     switch (buf[0]) {
-    case 'c':
-    item = cq_pop(me->new_conn_queue);
+	    case 'c':
+		    item = cq_pop(me->new_conn_queue);
 
-    if (NULL != item) {
-        conn *c = conn_new(item->sfd, item->init_state, item->event_flags,
-                           item->read_buffer_size, item->transport, me->base);
-        if (c == NULL) {
-            if (IS_UDP(item->transport)) {
-                fprintf(stderr, "Can't listen for events on UDP socket\n");
-                exit(1);
-            } else {
-                if (settings.verbose > 0) {
-                    fprintf(stderr, "Can't listen for events on fd %d\n",
-                        item->sfd);
-                }
-                close(item->sfd);
-            }
-        } else {
-            c->thread = me;
-        }
-        cqi_free(item);
-    }
-        break;
-    /* we were told to flip the lock type and report in */
-    case 'l':
-    me->item_lock_type = ITEM_LOCK_GRANULAR;
-    register_thread_initialized();
-        break;
-    case 'g':
-    me->item_lock_type = ITEM_LOCK_GLOBAL;
-    register_thread_initialized();
-        break;
+		    if (NULL != item) {
+		        conn *c = conn_new(item->sfd, item->init_state, item->event_flags,
+		                           item->read_buffer_size, item->transport, me->base);
+		        if (c == NULL) {
+		            if (IS_UDP(item->transport)) {
+		                fprintf(stderr, "Can't listen for events on UDP socket\n");
+		                exit(1);
+		            } else {
+		                if (settings.verbose > 0) {
+		                    fprintf(stderr, "Can't listen for events on fd %d\n",
+		                        item->sfd);
+		                }
+		                close(item->sfd);
+		            }
+		        } else {
+		            c->thread = me;
+		        }
+		        cqi_free(item);
+		    }
+	        break;
+	    /* we were told to flip the lock type and report in */
+	    case 'l':
+		    me->item_lock_type = ITEM_LOCK_GRANULAR;
+		    register_thread_initialized();
+	        break;
+	    case 'g':
+		    me->item_lock_type = ITEM_LOCK_GLOBAL;
+		    register_thread_initialized();
+	        break;
     }
 }
 
